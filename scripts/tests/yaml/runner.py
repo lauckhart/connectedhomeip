@@ -29,6 +29,7 @@ from matter_yamltests.parser import TestParserConfig
 from matter_yamltests.parser_builder import TestParserBuilderConfig
 from matter_yamltests.parser_config import TestConfigParser
 from matter_yamltests.pseudo_clusters.pseudo_clusters import PseudoClusters, get_default_pseudo_clusters
+from matter_yamltests.pseudo_clusters.clusters.accessory_server_bridge import AccessoryServerBridge
 from matter_yamltests.runner import TestRunner, TestRunnerConfig, TestRunnerOptions
 from matter_yamltests.websocket_runner import WebSocketRunner, WebSocketRunnerConfig
 from paths_finder import PathsFinder
@@ -44,6 +45,8 @@ _DEFAULT_CONFIG_DIR = TestsFinder.get_default_configuration_directory()
 _DEFAULT_SPECIFICATIONS_DIR = 'src/app/zap-templates/zcl/data-model/chip/*.xml'
 _DEFAULT_PICS_FILE = 'src/app/tests/suites/certification/ci-pics-values'
 
+# TODO - Linux should default to localhost as well
+_DEFAULT_ACCESSORY_SERVER_HOST = '10.10.10.5' if sys.platform == 'linux' else 'localhost'
 
 def get_custom_pseudo_clusters(additional_pseudo_clusters_directory: str):
     clusters = get_default_pseudo_clusters()
@@ -95,6 +98,10 @@ def test_runner_options(f):
                      help='Use the test harness log format.')(f)
     f = click.option('--delay-in-ms', type=int, default=0, show_default=True,
                      help='Add a delay between test suite steps.')(f)
+    f = click.option('--accessory_server_host', type=str, default=_DEFAULT_ACCESSORY_SERVER_HOST, show_default=True,
+                     help='The websocket server host to connect to.')(f)
+    f = click.option('--accessory_server_port', type=int, default=9000, show_default=True,
+                     help='The websocket server port to connect to.')(f)
     return f
 
 
@@ -254,7 +261,8 @@ CONTEXT_SETTINGS = dict(
 @click.argument('test_name')
 @test_parser_options
 @click.pass_context
-def runner_base(ctx, configuration_directory: str, test_name: str, configuration_name: str, pics: str, specifications_paths: str, stop_on_error: bool, use_default_pseudo_clusters: bool, additional_pseudo_clusters_directory: str, **kwargs):
+def runner_base(ctx, configuration_directory: str, test_name: str, configuration_name: str, pics: str, specifications_paths: str, stop_on_error: bool, use_default_pseudo_clusters: bool, additional_pseudo_clusters_directory: str, accessory_server_host: str, accessory_server_port: int, **kwargs):
+    AccessoryServerBridge.configure(accessory_server_host, accessory_server_port)
     pseudo_clusters = get_custom_pseudo_clusters(
         additional_pseudo_clusters_directory) if use_default_pseudo_clusters else PseudoClusters([])
     specifications = SpecDefinitionsFromPaths(specifications_paths.split(','), pseudo_clusters)
